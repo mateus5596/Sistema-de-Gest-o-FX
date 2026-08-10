@@ -1,1 +1,13 @@
-window.addEventListener(`DOMContentLoaded`,()=>{let e=(e,t)=>{let n=document.getElementById(e);n&&(n.innerText=t)};for(let t of[`chrome`,`node`,`electron`])e(`${t}-version`,process.versions[t])});
+//#region preload.js
+window.addEventListener("DOMContentLoaded", () => {
+	const replaceText = (selector, text) => {
+		const element = document.getElementById(selector);
+		if (element) element.innerText = text;
+	};
+	for (const type of [
+		"chrome",
+		"node",
+		"electron"
+	]) replaceText(`${type}-version`, process.versions[type]);
+});
+//#endregion
