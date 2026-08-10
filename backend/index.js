@@ -33,10 +33,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'FinanceX API is running' });
+});
+
 // Basic health check route
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });
 });
+
 
 // User Registration
 app.post('/api/register', async (req, res) => {
