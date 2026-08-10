@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { 
   TrendingUp, TrendingDown, Plus, Minus, Search, Settings, 
   LogOut, Briefcase, GraduationCap, Calendar, Filter,
-  Bell, User, ChevronDown, Activity, DollarSign, X
+  Bell, User, ChevronDown, Activity, DollarSign, X, Trash2,
+  Lock, Eye, EyeOff, ShieldCheck, Sparkles, ArrowRight, CheckCircle2
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -14,6 +15,15 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e'];
 
+const formatCPF = (value) => {
+  if (!value) return '';
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+};
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
@@ -22,6 +32,7 @@ function App() {
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
   const [authForm, setAuthForm] = useState({ name: '', cpf: '', password: '' });
   const [authError, setAuthError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [transactions, setTransactions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,6 +162,29 @@ function App() {
     }
   };
 
+  const handleDeleteTransaction = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta transação?')) return;
+    try {
+      const res = await fetch(`${API_URL}/transactions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchTransactions();
+      } else if (res.status === 401 || res.status === 403) {
+        handleLogout();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir transação:', error);
+    }
+  };
+
+  const handleTabSwitch = (mode) => {
+    setAuthMode(mode);
+    setAuthError('');
+    setAuthForm({ name: '', cpf: '', password: '' });
+  };
+
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -162,23 +196,28 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(authForm)
       });
-      const data = await res.json();
+      
+      let data = {};
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      }
 
       if (res.ok) {
-        if (authMode === 'login') {
+        if (data.token && data.user) {
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           setToken(data.token);
           setUser(data.user);
         } else {
-          setAuthMode('login'); // Redirect to login after register
-          setAuthForm({ ...authForm, password: '' });
-          alert('Conta criada com sucesso! Faça login para continuar.');
+          setAuthMode('login');
+          setAuthForm({ name: '', cpf: '', password: '' });
         }
       } else {
-        setAuthError(data.error || 'Erro de autenticação');
+        setAuthError(data.error || `Erro (${res.status}): Resposta inválida do servidor.`);
       }
     } catch (err) {
+      console.error(err);
       setAuthError('Falha ao conectar no servidor.');
     }
   };
@@ -193,48 +232,145 @@ function App() {
 
   if (!token) {
     return (
-      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="glass-panel" style={{ padding: '3rem', width: '400px', maxWidth: '90%' }}>
-          <div className="brand animate-fade-up" style={{ justifyContent: 'center', marginBottom: '2rem' }}>
-            <div className="brand-icon">
-              <Activity color="white" size={22} />
+      <div className="auth-page-container">
+        <div className="glow-orb orb-1"></div>
+        <div className="glow-orb orb-2"></div>
+
+        <div className="auth-wrapper">
+          {/* HERO SECTION */}
+          <div className="auth-hero-section">
+            <div className="auth-hero-brand">
+              <div className="brand-icon hero-icon">
+                <Activity color="white" size={26} />
+              </div>
+              <h1 className="hero-brand-title">FinanceX</h1>
             </div>
-            <h2 style={{ color: 'white', margin: 0 }}>FinanceX</h2>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <button className={`btn-primary ${authMode === 'login' ? '' : 'badge-outline'}`} 
-                    style={{ flex: 1, background: authMode === 'login' ? 'var(--primary)' : 'transparent', boxShadow: 'none' }}
-                    onClick={() => setAuthMode('login')}>Login</button>
-            <button className={`btn-primary ${authMode === 'register' ? '' : 'badge-outline'}`} 
-                    style={{ flex: 1, background: authMode === 'register' ? 'var(--primary)' : 'transparent', boxShadow: 'none' }}
-                    onClick={() => setAuthMode('register')}>Registrar</button>
+
+            <div className="auth-hero-content">
+              <h2>Gestão Financeira & BI de Alta Performance</h2>
+              <p>Controle estratégico de receitas, licitações, despesas e relatórios inteligentes em tempo real para a sua empresa.</p>
+
+              <div className="hero-features-list">
+                <div className="hero-feature-item">
+                  <div className="feature-icon-wrapper"><Sparkles size={16} /></div>
+                  <span>Dashboard Inteligente com Gráficos BI</span>
+                </div>
+                <div className="hero-feature-item">
+                  <div className="feature-icon-wrapper"><ShieldCheck size={16} /></div>
+                  <span>Segurança e Autenticação Protegida</span>
+                </div>
+                <div className="hero-feature-item">
+                  <div className="feature-icon-wrapper"><CheckCircle2 size={16} /></div>
+                  <span>Gestão Simplificada de Fluxo de Caixa</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="auth-hero-footer">
+              <span>© 2026 FinanceX Enterprise. Todos os direitos reservados.</span>
+            </div>
           </div>
 
-          <form onSubmit={handleAuthSubmit} className="animate-fade-up">
-            {authError && <div style={{ color: 'var(--danger)', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>{authError}</div>}
-            
-            {authMode === 'register' && (
-              <div className="input-group">
-                <label>Nome Completo</label>
-                <input type="text" className="input-field" placeholder="Seu nome" value={authForm.name} onChange={e => setAuthForm({...authForm, name: e.target.value})} required />
+          {/* FORM SECTION */}
+          <div className="auth-form-section">
+            <div className="auth-header">
+              <h2>{authMode === 'login' ? 'Bem-vindo de volta' : 'Crie sua conta'}</h2>
+              <p>{authMode === 'login' ? 'Insira suas credenciais para acessar o painel' : 'Preencha os dados abaixo para se cadastrar'}</p>
+            </div>
+
+            <div className="auth-tab-switcher">
+              <button 
+                type="button" 
+                className={`auth-tab-btn ${authMode === 'login' ? 'active' : ''}`}
+                onClick={() => handleTabSwitch('login')}
+              >
+                Login
+              </button>
+              <button 
+                type="button" 
+                className={`auth-tab-btn ${authMode === 'register' ? 'active' : ''}`}
+                onClick={() => handleTabSwitch('register')}
+              >
+                Registrar
+              </button>
+            </div>
+
+            {authError && (
+              <div className="auth-error-banner">
+                <X size={16} style={{ flexShrink: 0 }} />
+                <span>{authError}</span>
               </div>
             )}
-            
-            <div className="input-group">
-              <label>CPF</label>
-              <input type="text" className="input-field" placeholder="000.000.000-00" value={authForm.cpf} onChange={e => setAuthForm({...authForm, cpf: e.target.value})} required />
-            </div>
-            
-            <div className="input-group">
-              <label>Senha</label>
-              <input type="password" className="input-field" placeholder="••••••••" value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} required />
-            </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-              {authMode === 'login' ? 'Entrar no Sistema' : 'Criar Conta'}
-            </button>
-          </form>
+            <form onSubmit={handleAuthSubmit} className="auth-form">
+              {authMode === 'register' && (
+                <div className="input-group">
+                  <label htmlFor="auth-name">Nome Completo</label>
+                  <div className="input-field-wrapper">
+                    <User size={18} className="input-icon" />
+                    <input 
+                      id="auth-name" 
+                      type="text" 
+                      className="input-field with-icon" 
+                      placeholder="Ex: Mateus Silva" 
+                      value={authForm.name} 
+                      onChange={e => setAuthForm({...authForm, name: e.target.value})} 
+                      required 
+                      autoComplete="name" 
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="input-group">
+                <label htmlFor="auth-cpf">CPF</label>
+                <div className="input-field-wrapper">
+                  <User size={18} className="input-icon" />
+                  <input 
+                    id="auth-cpf" 
+                    type="text" 
+                    className="input-field with-icon" 
+                    placeholder="000.000.000-00" 
+                    value={authForm.cpf} 
+                    onChange={e => setAuthForm({...authForm, cpf: formatCPF(e.target.value)})} 
+                    maxLength={14}
+                    required 
+                    autoComplete="username" 
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="auth-password">Senha</label>
+                <div className="input-field-wrapper">
+                  <Lock size={18} className="input-icon" />
+                  <input 
+                    id="auth-password" 
+                    type={showPassword ? "text" : "password"} 
+                    className="input-field with-icon" 
+                    placeholder="••••••••" 
+                    value={authForm.password} 
+                    onChange={e => setAuthForm({...authForm, password: e.target.value})} 
+                    required 
+                    autoComplete="current-password" 
+                  />
+                  <button 
+                    type="button" 
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="btn-primary auth-submit-btn">
+                <span>{authMode === 'login' ? 'Entrar no Sistema' : 'Criar minha Conta'}</span>
+                <ArrowRight size={18} />
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
@@ -288,11 +424,11 @@ function App() {
               <Bell size={20} />
               <span className="badge-dot"></span>
             </button>
-            <div className="avatar" style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--glass-bg)', padding: '5px 15px', borderRadius: '30px', border: '1px solid var(--glass-border)' }}>
-              <span style={{color: 'white', fontSize: '0.9rem'}}>{user?.name?.split(' ')[0] || 'Usuário'}</span>
-              <div style={{width: 32, height: 32, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold'}}>
+            <div className="user-profile-badge">
+              <div className="user-avatar-circle">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
+              <span className="user-name-text">{user?.name || 'Usuário'}</span>
             </div>
           </div>
         </header>
@@ -300,9 +436,19 @@ function App() {
         {/* DASHBOARD CONTENT */}
         {activeTab === 'dashboard' && (
           <div className="dashboard-wrapper animate-fade-up delay-1">
-            <div className="header-title">
-              <h1>Visão Estratégica</h1>
-              <p>Acompanhe os indicadores de performance da sua empresa.</p>
+            <div className="header-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h1>Visão Estratégica</h1>
+                <p>Acompanhe os indicadores de performance da sua empresa.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="btn-primary" onClick={() => handleNewTransaction('expense')} style={{ background: 'linear-gradient(135deg, var(--danger), #be123c)' }}>
+                  <Minus size={18} /> Lançar Despesa
+                </button>
+                <button className="btn-primary" onClick={() => handleNewTransaction('income')} style={{ background: 'linear-gradient(135deg, var(--success), #047857)' }}>
+                  <Plus size={18} /> Lançar Receita
+                </button>
+              </div>
             </div>
 
             {/* METRICS */}
@@ -421,34 +567,51 @@ function App() {
                   <th>Data</th>
                   <th>Status</th>
                   <th style={{textAlign: 'right'}}>Valor (R$)</th>
+                  <th style={{textAlign: 'center', width: '80px'}}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTransactions.length > 0 ? (
-                  filteredTransactions.map(t => (
-                    <tr key={t.id}>
-                      <td className="tx-desc">{t.description}</td>
-                      <td>
-                        <span className="badge badge-outline">
-                          {t.category === 'Licitações' ? <Briefcase size={12} /> : 
-                           t.category === 'Trabalhos Acadêmicos' ? <GraduationCap size={12} /> : null}
-                          {t.category}
-                        </span>
-                      </td>
-                      <td style={{color: 'var(--text-secondary)'}}>{new Date(t.date).toLocaleDateString('pt-BR')}</td>
-                      <td>
-                        <span className={`badge ${t.status === 'pago' ? 'badge-success' : 'badge-warning'}`}>
-                          {t.status === 'pago' ? 'Confirmado' : 'Pendente'}
-                        </span>
-                      </td>
-                      <td className={`tx-amount ${t.type === 'income' ? 'tx-income' : 'tx-expense'}`}>
-                        {t.type === 'income' ? '+' : '-'} R$ {t.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))
+                  filteredTransactions.map(t => {
+                    const dateOnly = t.date ? t.date.split('T')[0] : '';
+                    const [y, m, d] = dateOnly ? dateOnly.split('-') : [];
+                    const formattedDate = d && m && y ? `${d}/${m}/${y}` : new Date(t.date).toLocaleDateString('pt-BR');
+
+                    return (
+                      <tr key={t.id}>
+                        <td className="tx-desc">{t.description}</td>
+                        <td>
+                          <span className="badge badge-outline">
+                            {t.category === 'Licitações' ? <Briefcase size={12} /> : 
+                             t.category === 'Trabalhos Acadêmicos' ? <GraduationCap size={12} /> : null}
+                            {t.category}
+                          </span>
+                        </td>
+                        <td style={{color: 'var(--text-secondary)'}}>{formattedDate}</td>
+                        <td>
+                          <span className={`badge ${t.status === 'pago' ? 'badge-success' : 'badge-warning'}`}>
+                            {t.status === 'pago' ? 'Confirmado' : 'Pendente'}
+                          </span>
+                        </td>
+                        <td className={`tx-amount ${t.type === 'income' ? 'tx-income' : 'tx-expense'}`}>
+                          {t.type === 'income' ? '+' : '-'} R$ {t.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{textAlign: 'center'}}>
+                          <button 
+                            className="icon-btn" 
+                            title="Excluir Transação"
+                            onClick={() => handleDeleteTransaction(t.id)}
+                            style={{ width: '32px', height: '32px', color: 'var(--danger)', margin: '0 auto' }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan="5" style={{textAlign: 'center', padding: '3rem', color: 'var(--text-muted)'}}>Nenhuma transação encontrada.</td>
+                    <td colSpan="6" style={{textAlign: 'center', padding: '3rem', color: 'var(--text-muted)'}}>Nenhuma transação encontrada.</td>
                   </tr>
                 )}
               </tbody>

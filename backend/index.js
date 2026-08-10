@@ -10,7 +10,8 @@ require('dotenv').config();
 const app = express();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const prisma = global.prisma || new PrismaClient({ adapter });
+if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 const port = process.env.PORT || 3000;
 
 app.use(cors());
@@ -47,11 +48,20 @@ app.get('/api/health', (req, res) => {
 app.post('/api/register', async (req, res) => {
   try {
     const { name, cpf, password } = req.body;
+    const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
     
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({ where: { cpf } });
+    // Check if user exists (check formatted or unformatted)
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { cpf: cpf },
+          { cpf: cleanCpf }
+        ]
+      }
+    });
+
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: 'Usuário já cadastrado com este CPF' });
     }
 
     // Hash password
@@ -60,15 +70,18 @@ app.post('/api/register', async (req, res) => {
     const user = await prisma.user.create({
       data: {
         name,
-        cpf,
+        cpf: cleanCpf || cpf,
         password: hashedPassword
       }
     });
 
-    res.json({ message: 'User registered successfully', userId: user.id });
+    // Generate token for auto-login
+    const token = jwt.sign({ userId: user.id, cpf: user.cpf }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ message: 'Usuário cadastrado com sucesso', token, user: { id: user.id, name: user.name, cpf: user.cpf } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to register user' });
+    res.status(500).json({ error: 'Falha ao cadastrar usuário' });
   }
 });
 
@@ -76,17 +89,26 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { cpf, password } = req.body;
+    const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
     
-    // Find user
-    const user = await prisma.user.findUnique({ where: { cpf } });
+    // Find user (support both formatted '123.456.789-00' and raw digits '12345678900')
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { cpf: cpf },
+          { cpf: cleanCpf }
+        ]
+      }
+    });
+
     if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ error: 'CPF ou senha incorretos' });
     }
 
     // Check password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ error: 'CPF ou senha incorretos' });
     }
 
     // Generate token
@@ -95,7 +117,7 @@ app.post('/api/login', async (req, res) => {
     res.json({ token, user: { id: user.id, name: user.name, cpf: user.cpf } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to login' });
+    res.status(500).json({ error: 'Falha ao realizar login' });
   }
 });
 
