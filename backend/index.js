@@ -8,7 +8,11 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_SIpP4sb2etQa@ep-icy-dawn-acemibaq-pooler.sa-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require";
+const pool = new Pool({ 
+  connectionString,
+  ssl: { rejectUnauthorized: false }
+});
 const adapter = new PrismaPg(pool);
 const prisma = global.prisma || new PrismaClient({ adapter });
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
