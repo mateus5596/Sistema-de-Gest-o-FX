@@ -84,8 +84,8 @@ app.post('/api/register', async (req, res) => {
 
     res.json({ message: 'Usuário cadastrado com sucesso', token, user: { id: user.id, name: user.name, cpf: user.cpf } });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Falha ao cadastrar usuário' });
+    console.error('Register error:', error);
+    res.status(500).json({ error: error.message || 'Falha ao cadastrar usuário' });
   }
 });
 
@@ -120,8 +120,8 @@ app.post('/api/login', async (req, res) => {
     
     res.json({ token, user: { id: user.id, name: user.name, cpf: user.cpf } });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Falha ao realizar login' });
+    console.error('Login error:', error);
+    res.status(500).json({ error: error.message || 'Falha ao realizar login' });
   }
 });
 
